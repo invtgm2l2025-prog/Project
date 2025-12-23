@@ -5,7 +5,7 @@ import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { showSuccess, showError } from "@/utils/toast";
+import { showSuccess } from "@/utils/toast"; // Removed showError as it's not used for this event type
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,9 +17,9 @@ const Login = () => {
         navigate("/"); // Rediriger vers le tableau de bord après connexion
       } else if (event === 'SIGNED_OUT') {
         showSuccess("Déconnexion réussie.");
-      } else if (event === 'AUTH_API_ERROR') {
-        showError("Erreur d'authentification. Veuillez réessayer.");
       }
+      // Removed the 'AUTH_API_ERROR' check as it's not a valid event type for onAuthStateChange.
+      // The Auth component handles its own error display.
     });
 
     // Nettoyage de l'écouteur d'état d'authentification
