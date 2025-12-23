@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Trash2 } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
 import { useSession } from "@/components/auth/SessionContextProvider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TeamMember {
   id: string;
@@ -70,6 +77,27 @@ export const TeamMembersList = () => {
     }
   };
 
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    if (!user) {
+      showError("Vous devez être connecté pour modifier le statut d'un membre d'équipe.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("team_members")
+      .update({ status: newStatus })
+      .eq("id", id)
+      .eq("user_id", user.id); // S'assurer que l'utilisateur ne peut modifier que ses propres membres
+
+    if (error) {
+      console.error("Erreur lors de la mise à jour du statut:", error);
+      showError("Échec de la mise à jour du statut: " + error.message);
+    } else {
+      showSuccess("Statut mis à jour avec succès !");
+      queryClient.invalidateQueries({ queryKey: ["team_members"] }); // Invalider le cache pour rafraîchir la liste
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -116,7 +144,22 @@ export const TeamMembersList = () => {
               {teamMembers.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.status}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={member.status}
+                      onValueChange={(newStatus) => handleStatusChange(member.id, newStatus)}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Sélectionner un statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Présent">Présent</SelectItem>
+                        <SelectItem value="Absent">Absent</SelectItem>
+                        <SelectItem value="En congé">En congé</SelectItem>
+                        <SelectItem value="En mission">En mission</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="destructive"
