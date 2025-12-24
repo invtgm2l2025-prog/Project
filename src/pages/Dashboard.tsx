@@ -6,6 +6,48 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { Loader2 } from "lucide-react";
 import { showError } from "@/utils/toast";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale"; // Import French locale for date formatting
+
+// Define interfaces for the raw data returned by Supabase joins
+interface SupabaseJoinedTeamMember {
+  name: string;
+}
+
+interface SupabaseLeaveRequestData {
+  id: string;
+  team_members: SupabaseJoinedTeamMember | null;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: string;
+  created_at: string;
+}
+
+interface SupabaseOvertimeRequestData {
+  id: string;
+  team_members: SupabaseJoinedTeamMember | null;
+  date: string;
+  hours: number;
+  description: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface SupabaseTourData {
+  id: string;
+  team_members: SupabaseJoinedTeamMember | null;
+  tour_date: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface SupabaseTeamMemberData {
+  id: string;
+  name: string;
+  created_at: string;
+}
 
 const Dashboard = () => {
   const { user } = useSession();
@@ -81,12 +123,101 @@ const Dashboard = () => {
     enabled: !!user,
   });
 
+  // Fetch recent activities
+  const { data: recentLeaveRequests, isLoading: isLoadingRecentLeaveRequests } = useQuery({
+    queryKey: ["recent_leave_requests"],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("id, team_members(name), start_date, end_date, reason, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw new Error(error.message);
+      return (data as unknown as SupabaseLeaveRequestData[]).map(req => ({
+        ...req,
+        type: "leave_request",
+        message: `Nouvelle demande de congé de ${req.team_members?.name || 'un membre'} du ${format(new Date(req.start_date), "PPP", { locale: fr })} au ${format(new Date(req.end_date), "PPP", { locale: fr })} (Statut: ${req.status}).`,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const { data: recentOvertimeRequests, isLoading: isLoadingRecentOvertimeRequests } = useQuery({
+    queryKey: ["recent_overtime_requests"],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("overtime_requests")
+        .select("id, team_members(name), date, hours, description, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw new Error(error.message);
+      return (data as unknown as SupabaseOvertimeRequestData[]).map(req => ({
+        ...req,
+        type: "overtime_request",
+        message: `Nouvelle demande d'heures supplémentaires de ${req.team_members?.name || 'un membre'} pour ${req.hours} heures le ${format(new Date(req.date), "PPP", { locale: fr })} (Statut: ${req.status}).`,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const { data: recentTours, isLoading: isLoadingRecentTours } = useQuery({
+    queryKey: ["recent_tours"],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("tours")
+        .select("id, team_members(name), tour_date, description, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw new Error(error.message);
+      return (data as unknown as SupabaseTourData[]).map(tour => ({
+        ...tour,
+        type: "tour_planned",
+        message: `Nouvelle tournée planifiée pour ${tour.team_members?.name || 'un membre'} le ${format(new Date(tour.tour_date), "PPP", { locale: fr })} (Statut: ${tour.status}).`,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const { data: recentTeamMembers, isLoading: isLoadingRecentTeamMembers } = useQuery({
+    queryKey: ["recent_team_members"],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("id, name, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw new Error(error.message);
+      return (data as SupabaseTeamMemberData[]).map(member => ({
+        ...member,
+        type: "team_member_added",
+        message: `Nouveau membre d'équipe ajouté : ${member.name}.`,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const allRecentActivities = [
+    ...(recentLeaveRequests || []),
+    ...(recentOvertimeRequests || []),
+    ...(recentTours || []),
+    ...(recentTeamMembers || []),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
   if (teamMembersError) showError("Erreur lors du chargement des membres de l'équipe: " + teamMembersError.message);
   if (leaveRequestsError) showError("Erreur lors du chargement des demandes de congés: " + leaveRequestsError.message);
   if (overtimeError) showError("Erreur lors du chargement des heures supplémentaires: " + overtimeError.message);
   if (toursError) showError("Erreur lors du chargement des tournées: " + toursError.message);
 
-  const isLoadingAny = isLoadingTeamMembers || isLoadingLeaveRequests || isLoadingOvertime || isLoadingTours;
+  const isLoadingAny = isLoadingTeamMembers || isLoadingLeaveRequests || isLoadingOvertime || isLoadingTours ||
+                       isLoadingRecentLeaveRequests || isLoadingRecentOvertimeRequests || isLoadingRecentTours || isLoadingRecentTeamMembers;
 
   return (
     <div className="container mx-auto py-8">
@@ -157,9 +288,24 @@ const Dashboard = () => {
         <h2 className="text-2xl font-semibold mb-4">Activités Récentes</h2>
         <Card>
           <CardContent className="p-4">
-            <p className="text-muted-foreground">
-              Les activités récentes seront affichées ici (fonctionnalité à venir).
-            </p>
+            {isLoadingAny ? (
+              <div className="flex justify-center items-center h-20">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Chargement des activités...</p>
+              </div>
+            ) : allRecentActivities && allRecentActivities.length > 0 ? (
+              <ul className="space-y-2">
+                {allRecentActivities.slice(0, 5).map((activity, index) => ( // Display up to 5 recent activities
+                  <li key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">{format(new Date(activity.created_at), "dd/MM HH:mm", { locale: fr })}:</span> {activity.message}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">
+                Aucune activité récente à afficher pour le moment.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
