@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Link } from "react-router-dom";
 import { Home, Clock, CalendarDays, Hourglass, Map } from "lucide-react";
 import { cn } from "@/lib/utils";

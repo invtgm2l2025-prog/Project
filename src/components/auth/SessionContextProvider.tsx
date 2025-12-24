@@ -1,10 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
-import { showSuccess, showError } from "@/utils/toast";
+// Removed showSuccess, showError as they are not used in this file
 
 interface SessionContextType {
   session: Session | null;

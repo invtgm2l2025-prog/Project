@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { AddLeaveRequestForm } from "@/components/leave-absence/AddLeaveRequestForm";
 import { LeaveRequestsList } from "@/components/leave-absence/LeaveRequestsList";
 

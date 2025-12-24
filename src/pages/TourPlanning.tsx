@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { AddTourForm } from "@/components/tour-planning/AddTourForm";
 import { TourList } from "@/components/tour-planning/TourList";
 

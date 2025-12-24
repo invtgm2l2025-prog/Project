@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export const AddTeamMemberForm = () => {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
+    const { error } = await supabase // 'data' variable removed as it was not used
       .from("team_members")
       .insert([{ name: name.trim(), user_id: user.id }])
       .select();

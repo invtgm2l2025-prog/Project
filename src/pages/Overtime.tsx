@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { AddOvertimeRequestForm } from "@/components/overtime/AddOvertimeRequestForm";
 import { OvertimeRequestsList } from "@/components/overtime/OvertimeRequestsList";
 

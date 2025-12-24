@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { AddTeamMemberForm } from "@/components/team-members/AddTeamMemberForm";
 import { TeamMembersList } from "@/components/team-members/TeamMembersList";
 
