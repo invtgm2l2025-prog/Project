@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import { Home, Clock, CalendarDays, Hourglass, Map, User, LogOut } from "lucide-react";
+import { Home, Clock, CalendarDays, Hourglass, Map, User, LogOut, ClipboardCheck } from "lucide-react"; // Import ClipboardCheck icon
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,11 +12,11 @@ import { showError, showSuccess } from "@/utils/toast";
 
 export const Sidebar = () => {
   const isMobile = useIsMobile();
-  // const navigate = useNavigate(); // Removed as it's not used
 
   const navItems = [
     { name: "Tableau de bord", icon: Home, path: "/" },
     { name: "Présence", icon: Clock, path: "/presence" },
+    { name: "Présences Quotidiennes", icon: ClipboardCheck, path: "/daily-attendance" }, // New Daily Attendance link
     { name: "Congés & Absences", icon: CalendarDays, path: "/leave-absence" },
     { name: "Heures Supplémentaires", icon: Hourglass, path: "/overtime" },
     { name: "Planification des Tournées", icon: Map, path: "/tour-planning" },

@@ -9,7 +9,8 @@ import Presence from "./pages/Presence";
 import LeaveAbsence from "./pages/LeaveAbsence";
 import Overtime from "./pages/Overtime";
 import TourPlanning from "./pages/TourPlanning";
-import Profile from "./pages/Profile"; // Import the new Profile page
+import Profile from "./pages/Profile";
+import DailyAttendance from "./pages/DailyAttendance"; // Import the new DailyAttendance page
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider } from "@/components/auth/SessionContextProvider";
@@ -31,7 +32,8 @@ const App = () => (
               <Route path="leave-absence" element={<LeaveAbsence />} />
               <Route path="overtime" element={<Overtime />} />
               <Route path="tour-planning" element={<TourPlanning />} />
-              <Route path="profile" element={<Profile />} /> {/* New Profile Route */}
+              <Route path="profile" element={<Profile />} />
+              <Route path="daily-attendance" element={<DailyAttendance />} /> {/* New Daily Attendance Route */}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Route>
