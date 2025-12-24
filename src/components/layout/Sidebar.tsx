@@ -1,15 +1,18 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import { Home, Clock, CalendarDays, Hourglass, Map, User } from "lucide-react"; // Import User icon
+import { Home, Clock, CalendarDays, Hourglass, Map, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { showError, showSuccess } from "@/utils/toast";
 
 export const Sidebar = () => {
   const isMobile = useIsMobile();
+  // const navigate = useNavigate(); // Removed as it's not used
 
   const navItems = [
     { name: "Tableau de bord", icon: Home, path: "/" },
@@ -17,8 +20,19 @@ export const Sidebar = () => {
     { name: "Congés & Absences", icon: CalendarDays, path: "/leave-absence" },
     { name: "Heures Supplémentaires", icon: Hourglass, path: "/overtime" },
     { name: "Planification des Tournées", icon: Map, path: "/tour-planning" },
-    { name: "Profil", icon: User, path: "/profile" }, // New Profile link
+    { name: "Profil", icon: User, path: "/profile" },
   ];
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      showError("Échec de la déconnexion: " + error.message);
+    } else {
+      showSuccess("Vous avez été déconnecté avec succès.");
+      // The SessionContextProvider will handle the navigation to /login
+    }
+  };
 
   if (isMobile) {
     return null;
@@ -55,6 +69,16 @@ export const Sidebar = () => {
           ))}
         </nav>
       </ScrollArea>
+      <div className="mt-auto pt-4 border-t">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-sidebar-foreground hover:bg-destructive hover:text-destructive-foreground"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Déconnexion
+        </Button>
+      </div>
     </aside>
   );
 };
