@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import { Home, Clock, CalendarDays, Hourglass, Map } from "lucide-react";
+import { Home, Clock, CalendarDays, Hourglass, Map, User } from "lucide-react"; // Import User icon
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,13 +17,11 @@ export const Sidebar = () => {
     { name: "Congés & Absences", icon: CalendarDays, path: "/leave-absence" },
     { name: "Heures Supplémentaires", icon: Hourglass, path: "/overtime" },
     { name: "Planification des Tournées", icon: Map, path: "/tour-planning" },
+    { name: "Profil", icon: User, path: "/profile" }, // New Profile link
   ];
 
   if (isMobile) {
-    // For mobile, we might want a different approach, e.g., a bottom navigation or a drawer.
-    // For now, we'll keep it simple and just hide the full sidebar.
-    // A full mobile navigation solution would involve a Drawer component.
-    return null; // Or implement a mobile-specific navigation here
+    return null;
   }
 
   return (
