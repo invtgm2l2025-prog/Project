@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceReportFilters } from "@/components/attendance-summary/AttendanceReportFilters";
-// import { AttendanceSummaryTable } from "@/components/attendance-summary/AttendanceSummaryTable"; // Will be added later
+import { AttendanceSummaryTable } from "@/components/attendance-summary/AttendanceSummaryTable"; // Import the new component
 
 const AttendanceSummary = () => {
-  const [, setFilters] = useState({ // 'filters' est ignoré pour l'instant car non utilisé directement ici
+  const [filters, setFilters] = useState({
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     teamMemberId: "" as string,
@@ -26,11 +26,7 @@ const AttendanceSummary = () => {
             <CardTitle>Résumé des Présences</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* <AttendanceSummaryTable filters={filters} /> */}
-            <p className="text-muted-foreground">
-              Sélectionnez les filtres ci-dessus pour afficher le rapport.
-              Le tableau de résumé sera affiché ici.
-            </p>
+            <AttendanceSummaryTable filters={filters} />
           </CardContent>
         </Card>
       </div>
