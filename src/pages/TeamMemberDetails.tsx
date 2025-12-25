@@ -8,7 +8,10 @@ import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { TeamMemberProfileCard } from "@/components/team-members/TeamMemberProfileCard";
-// Importez ici d'autres composants pour afficher les listes filtrées (présence, congés, etc.)
+import { TeamMemberAttendanceList } from "@/components/team-members/TeamMemberAttendanceList";
+import { TeamMemberLeaveRequestsList } from "@/components/team-members/TeamMemberLeaveRequestsList";
+import { TeamMemberOvertimeRequestsList } from "@/components/team-members/TeamMemberOvertimeRequestsList";
+import { TeamMemberTourList } from "@/components/team-members/TeamMemberTourList";
 
 interface TeamMember {
   id: string;
@@ -83,7 +86,10 @@ const TeamMemberDetails = () => {
       <h1 className="text-3xl font-bold mb-8">Détails de {teamMember.name}</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TeamMemberProfileCard teamMember={teamMember} />
-        {/* Ici, nous ajouterons d'autres composants pour les listes filtrées */}
+        <TeamMemberAttendanceList teamMemberId={teamMember.id} />
+        <TeamMemberLeaveRequestsList teamMemberId={teamMember.id} />
+        <TeamMemberOvertimeRequestsList teamMemberId={teamMember.id} />
+        <TeamMemberTourList teamMemberId={teamMember.id} />
       </div>
     </div>
   );
