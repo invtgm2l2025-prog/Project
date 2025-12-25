@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner } from "@/components/ui/sonner"; // Alias Toaster from sonner to avoid conflict
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -12,7 +12,7 @@ import TourPlanning from "./pages/TourPlanning";
 import Profile from "./pages/Profile";
 import DailyAttendance from "./pages/DailyAttendance";
 import AttendanceSummary from "./pages/AttendanceSummary";
-import TeamMemberDetails from "./pages/TeamMemberDetails"; // Import the new TeamMemberDetails page
+import TeamMemberDetails from "./pages/TeamMemberDetails";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider } from "@/components/auth/SessionContextProvider";
@@ -22,8 +22,10 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      {/* Radix UI Toaster (for useToast hook) */}
+      <Toaster /> 
+      {/* Sonner Toaster (for toast utility functions) */}
+      <Sonner /> 
       <BrowserRouter>
         <SessionContextProvider>
           <Routes>
@@ -37,7 +39,7 @@ const App = () => (
               <Route path="tour-planning" element={<TourPlanning />} />
               <Route path="profile" element={<Profile />} />
               <Route path="attendance-summary" element={<AttendanceSummary />} />
-              <Route path="team-members/:id" element={<TeamMemberDetails />} /> {/* New Team Member Details Route */}
+              <Route path="team-members/:id" element={<TeamMemberDetails />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Route>
