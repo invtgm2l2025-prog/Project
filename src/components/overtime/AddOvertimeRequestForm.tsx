@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
@@ -22,20 +22,44 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 interface TeamMember {
   id: string;
   name: string;
 }
 
+// Schéma de validation pour le formulaire de demande d'heures supplémentaires
+const formSchema = z.object({
+  teamMemberId: z.string().min(1, "Veuillez sélectionner un membre d'équipe."),
+  date: z.date({
+    required_error: "Veuillez sélectionner une date.",
+  }),
+  hours: z.preprocess(
+    (val) => (val === "" ? null : Number(val)),
+    z.number().min(0.5, "Le nombre d'heures doit être au moins de 0.5").max(24, "Le nombre d'heures ne peut pas dépasser 24")
+  ),
+  description: z.string().max(255, "La description est trop longue.").optional(),
+});
+
+type AddOvertimeRequestFormValues = z.infer<typeof formSchema>;
+
 export const AddOvertimeRequestForm = () => {
-  const [teamMemberId, setTeamMemberId] = useState<string>("");
-  const [date, setDate] = useState<Date | undefined>(undefined);
-  const [hours, setHours] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useSession();
+  const [loading, setLoading] = useState(false);
+
+  const form = useForm<AddOvertimeRequestFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      teamMemberId: "",
+      date: undefined,
+      hours: undefined,
+      description: "",
+    },
+  });
 
   const { data: teamMembers, isLoading: isLoadingTeamMembers } = useQuery<TeamMember[]>({
     queryKey: ["team_members_for_overtime"],
@@ -51,19 +75,9 @@ export const AddOvertimeRequestForm = () => {
     enabled: !!user,
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AddOvertimeRequestFormValues) => {
     if (!user) {
       showError("Vous devez être connecté pour soumettre une demande d'heures supplémentaires.");
-      return;
-    }
-    if (!teamMemberId || !date || !hours.trim()) {
-      showError("Veuillez remplir tous les champs obligatoires.");
-      return;
-    }
-    const parsedHours = parseFloat(hours);
-    if (isNaN(parsedHours) || parsedHours <= 0) {
-      showError("Veuillez entrer un nombre d'heures valide.");
       return;
     }
 
@@ -71,10 +85,10 @@ export const AddOvertimeRequestForm = () => {
     const { error } = await supabase.from("overtime_requests").insert([
       {
         user_id: user.id,
-        team_member_id: teamMemberId,
-        date: format(date, "yyyy-MM-dd"),
-        hours: parsedHours,
-        description: description.trim(),
+        team_member_id: values.teamMemberId,
+        date: format(values.date, "yyyy-MM-dd"),
+        hours: values.hours,
+        description: values.description?.trim() || null,
         status: "Pending",
       },
     ]);
@@ -84,11 +98,8 @@ export const AddOvertimeRequestForm = () => {
       showError("Échec de la soumission de la demande: " + error.message);
     } else {
       showSuccess("Demande d'heures supplémentaires soumise avec succès !");
-      setTeamMemberId("");
-      setDate(undefined);
-      setHours("");
-      setDescription("");
-      queryClient.invalidateQueries({ queryKey: ["overtime_requests"] }); // Invalider le cache pour rafraîchir la liste
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ["overtime_requests"] });
     }
     setLoading(false);
   };
@@ -99,12 +110,12 @@ export const AddOvertimeRequestForm = () => {
         <CardTitle>Nouvelle Demande d'Heures Supplémentaires</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="teamMember">Membre de l'équipe</Label>
             <Select
-              value={teamMemberId}
-              onValueChange={setTeamMemberId}
+              value={form.watch("teamMemberId")}
+              onValueChange={(value) => form.setValue("teamMemberId", value, { shouldValidate: true })}
               disabled={isLoadingTeamMembers || loading}
             >
               <SelectTrigger id="teamMember">
@@ -128,6 +139,9 @@ export const AddOvertimeRequestForm = () => {
                 )}
               </SelectContent>
             </Select>
+            {form.formState.errors.teamMemberId && (
+              <p className="text-red-500 text-sm">{form.formState.errors.teamMemberId.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -138,23 +152,26 @@ export const AddOvertimeRequestForm = () => {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
+                    !form.watch("date") && "text-muted-foreground"
                   )}
                   disabled={loading}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : <span>Sélectionner une date</span>}
+                  {form.watch("date") ? format(form.watch("date")!, "PPP") : <span>Sélectionner une date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                  selected={date}
-                  onSelect={setDate}
+                  selected={form.watch("date")}
+                  onSelect={(date) => form.setValue("date", date!, { shouldValidate: true })}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {form.formState.errors.date && (
+              <p className="text-red-500 text-sm">{form.formState.errors.date.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -164,10 +181,12 @@ export const AddOvertimeRequestForm = () => {
               type="number"
               step="0.5"
               placeholder="Ex: 8.5"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
+              {...form.register("hours", { valueAsNumber: true })}
               disabled={loading}
             />
+            {form.formState.errors.hours && (
+              <p className="text-red-500 text-sm">{form.formState.errors.hours.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -175,10 +194,12 @@ export const AddOvertimeRequestForm = () => {
             <Textarea
               id="description"
               placeholder="Ex: Travail sur le projet X en urgence."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...form.register("description")}
               disabled={loading}
             />
+            {form.formState.errors.description && (
+              <p className="text-red-500 text-sm">{form.formState.errors.description.message}</p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
