@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast"; // Import showSuccess for export feedback
 import {
   Table,
   TableBody,
@@ -13,8 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth } from "date-fns"; // Removed endOfMonth
+import { Button } from "@/components/ui/button"; // Import Button component
+import { Loader2, Download } from "lucide-react"; // Import Download icon
+import { format, startOfWeek, endOfWeek, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface DailyAttendance {
@@ -156,6 +157,55 @@ export const AttendanceSummaryTable = ({ filters }: AttendanceSummaryTableProps)
     return result;
   }, [rawAttendances, reportType, startDate, endDate]);
 
+  const exportToCsv = () => {
+    if (!aggregatedData || aggregatedData.length === 0) {
+      showError("Aucune donnée à exporter.");
+      return;
+    }
+
+    let headers: string[];
+    let csvRows: string[];
+
+    if (reportType === "daily") {
+      headers = ["Date", "Membre de l'équipe", "Statut", "Heures travaillées", "Description"];
+      csvRows = aggregatedData.map(row =>
+        [
+          `"${row.period}"`,
+          `"${row.teamMemberName}"`,
+          `"${row.status}"`,
+          `"${row.hoursWorked !== null ? row.hoursWorked : "N/A"}"`,
+          `"${row.description || "N/A"}"`,
+        ].join(",")
+      );
+    } else {
+      headers = ["Période", "Membre de l'équipe", "Jours Présents", "Jours Absents", "Jours Congé", "Jours Maladie", "Jours Fériés", "Total Heures"];
+      csvRows = aggregatedData.map(row =>
+        [
+          `"${row.period}"`,
+          `"${row.teamMemberName}"`,
+          `"${row.presentDays}"`,
+          `"${row.absentDays}"`,
+          `"${row.leaveDays}"`,
+          `"${row.sickDays}"`,
+          `"${row.holidayDays}"`,
+          `"${row.totalHours.toFixed(1)}"`
+        ].join(",")
+      );
+    }
+
+    const csvContent = [headers.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `rapport_presences_${reportType}_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showSuccess("Rapport exporté avec succès !");
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-40">
@@ -184,6 +234,12 @@ export const AttendanceSummaryTable = ({ filters }: AttendanceSummaryTableProps)
 
   return (
     <div className="overflow-x-auto">
+      <div className="flex justify-end mb-4">
+        <Button onClick={exportToCsv} disabled={!aggregatedData || aggregatedData.length === 0}>
+          <Download className="mr-2 h-4 w-4" />
+          Exporter en CSV
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
