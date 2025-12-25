@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-// Removed Input as it was not used
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,20 +21,56 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 interface TeamMember {
   id: string;
   name: string;
 }
 
+// Schéma de validation pour le formulaire de demande de congé
+const formSchema = z.object({
+  teamMemberId: z.string().min(1, "Veuillez sélectionner un membre d'équipe."),
+  startDate: z.date({
+    required_error: "Veuillez sélectionner une date de début.",
+  }),
+  endDate: z.date({
+    required_error: "Veuillez sélectionner une date de fin.",
+  }),
+  reason: z.string().min(1, "La raison du congé est requise.").max(255, "La raison est trop longue."),
+}).superRefine((data, ctx) => {
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La date de début ne peut pas être postérieure à la date de fin.",
+      path: ["startDate"],
+    });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La date de fin ne peut pas être antérieure à la date de début.",
+      path: ["endDate"],
+    });
+  }
+});
+
+type AddLeaveRequestFormValues = z.infer<typeof formSchema>;
+
 export const AddLeaveRequestForm = () => {
-  const [teamMemberId, setTeamMemberId] = useState<string>("");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [reason, setReason] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useSession();
+  const [loading, setLoading] = useState(false);
+
+  const form = useForm<AddLeaveRequestFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      teamMemberId: "",
+      startDate: undefined,
+      endDate: undefined,
+      reason: "",
+    },
+  });
 
   const { data: teamMembers, isLoading: isLoadingTeamMembers } = useQuery<TeamMember[]>({
     queryKey: ["team_members_for_leave"],
@@ -51,18 +86,9 @@ export const AddLeaveRequestForm = () => {
     enabled: !!user,
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AddLeaveRequestFormValues) => {
     if (!user) {
       showError("Vous devez être connecté pour soumettre une demande de congé.");
-      return;
-    }
-    if (!teamMemberId || !startDate || !endDate || !reason.trim()) {
-      showError("Veuillez remplir tous les champs.");
-      return;
-    }
-    if (startDate > endDate) {
-      showError("La date de début ne peut pas être postérieure à la date de fin.");
       return;
     }
 
@@ -70,10 +96,10 @@ export const AddLeaveRequestForm = () => {
     const { error } = await supabase.from("leave_requests").insert([
       {
         user_id: user.id,
-        team_member_id: teamMemberId,
-        start_date: format(startDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
-        reason: reason.trim(),
+        team_member_id: values.teamMemberId,
+        start_date: format(values.startDate, "yyyy-MM-dd"),
+        end_date: format(values.endDate, "yyyy-MM-dd"),
+        reason: values.reason.trim(),
         status: "Pending",
       },
     ]);
@@ -83,11 +109,8 @@ export const AddLeaveRequestForm = () => {
       showError("Échec de la soumission de la demande de congé: " + error.message);
     } else {
       showSuccess("Demande de congé soumise avec succès !");
-      setTeamMemberId("");
-      setStartDate(undefined);
-      setEndDate(undefined);
-      setReason("");
-      queryClient.invalidateQueries({ queryKey: ["leave_requests"] }); // Invalider le cache pour rafraîchir la liste
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ["leave_requests"] });
     }
     setLoading(false);
   };
@@ -98,12 +121,12 @@ export const AddLeaveRequestForm = () => {
         <CardTitle>Nouvelle Demande de Congé</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="teamMember">Membre de l'équipe</Label>
             <Select
-              value={teamMemberId}
-              onValueChange={setTeamMemberId}
+              value={form.watch("teamMemberId")}
+              onValueChange={(value) => form.setValue("teamMemberId", value, { shouldValidate: true })}
               disabled={isLoadingTeamMembers || loading}
             >
               <SelectTrigger id="teamMember">
@@ -127,6 +150,9 @@ export const AddLeaveRequestForm = () => {
                 )}
               </SelectContent>
             </Select>
+            {form.formState.errors.teamMemberId && (
+              <p className="text-red-500 text-sm">{form.formState.errors.teamMemberId.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -137,23 +163,26 @@ export const AddLeaveRequestForm = () => {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
+                    !form.watch("startDate") && "text-muted-foreground"
                   )}
                   disabled={loading}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP") : <span>Sélectionner une date</span>}
+                  {form.watch("startDate") ? format(form.watch("startDate")!, "PPP") : <span>Sélectionner une date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
+                  selected={form.watch("startDate")}
+                  onSelect={(date) => form.setValue("startDate", date!, { shouldValidate: true })}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {form.formState.errors.startDate && (
+              <p className="text-red-500 text-sm">{form.formState.errors.startDate.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -164,23 +193,26 @@ export const AddLeaveRequestForm = () => {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
+                    !form.watch("endDate") && "text-muted-foreground"
                   )}
                   disabled={loading}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "PPP") : <span>Sélectionner une date</span>}
+                  {form.watch("endDate") ? format(form.watch("endDate")!, "PPP") : <span>Sélectionner une date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                  selected={endDate}
-                  onSelect={setEndDate}
+                  selected={form.watch("endDate")}
+                  onSelect={(date) => form.setValue("endDate", date!, { shouldValidate: true })}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {form.formState.errors.endDate && (
+              <p className="text-red-500 text-sm">{form.formState.errors.endDate.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -188,10 +220,12 @@ export const AddLeaveRequestForm = () => {
             <Textarea
               id="reason"
               placeholder="Ex: Vacances annuelles, rendez-vous médical..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              {...form.register("reason")}
               disabled={loading}
             />
+            {form.formState.errors.reason && (
+              <p className="text-red-500 text-sm">{form.formState.errors.reason.message}</p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
