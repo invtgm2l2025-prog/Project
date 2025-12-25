@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,7 +13,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input"; // Import Input component
+import { Loader2, Trash2, Search } from "lucide-react"; // Import Search icon
 import { showError, showSuccess } from "@/utils/toast";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import {
@@ -22,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Link } from "react-router-dom"; // Import Link from react-router-dom
+import { Link } from "react-router-dom";
 
 interface TeamMember {
   id: string;
@@ -34,23 +36,31 @@ interface TeamMember {
 export const TeamMembersList = () => {
   const queryClient = useQueryClient();
   const { user } = useSession();
+  const [searchTerm, setSearchTerm] = useState(""); // State for search term
 
   const { data: teamMembers, isLoading, error } = useQuery<TeamMember[]>({
-    queryKey: ["team_members"],
+    queryKey: ["team_members", searchTerm], // Add searchTerm to queryKey for re-fetching
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from("team_members")
         .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .eq("user_id", user.id);
+
+      if (searchTerm) {
+        query = query.ilike("name", `%${searchTerm}%`); // Case-insensitive search
+      }
+
+      query = query.order("created_at", { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
         throw new Error(error.message);
       }
       return data || [];
     },
-    enabled: !!user, // N'exécuter la requête que si l'utilisateur est connecté
+    enabled: !!user,
   });
 
   const handleDelete = async (id: string) => {
@@ -66,14 +76,14 @@ export const TeamMembersList = () => {
       .from("team_members")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id); // S'assurer que l'utilisateur ne peut supprimer que ses propres membres
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Erreur lors de la suppression du membre de l'équipe:", error);
       showError("Échec de la suppression du membre de l'équipe: " + error.message);
     } else {
       showSuccess("Membre de l'équipe supprimé avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["team_members"] }); // Invalider le cache pour rafraîchir la liste
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
     }
   };
 
@@ -87,14 +97,14 @@ export const TeamMembersList = () => {
       .from("team_members")
       .update({ status: newStatus })
       .eq("id", id)
-      .eq("user_id", user.id); // S'assurer que l'utilisateur ne peut modifier que ses propres membres
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Erreur lors de la mise à jour du statut:", error);
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["team_members"] }); // Invalider le cache pour rafraîchir la liste
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
     }
   };
 
@@ -131,6 +141,16 @@ export const TeamMembersList = () => {
         <CardTitle>Membres de l'équipe</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Rechercher un membre par nom..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         {teamMembers && teamMembers.length > 0 ? (
           <Table>
             <TableHeader>
@@ -178,7 +198,7 @@ export const TeamMembersList = () => {
             </TableBody>
           </Table>
         ) : (
-          <p className="text-muted-foreground">Aucun membre d'équipe ajouté pour le moment.</p>
+          <p className="text-muted-foreground">Aucun membre d'équipe trouvé.</p>
         )}
       </CardContent>
     </Card>
