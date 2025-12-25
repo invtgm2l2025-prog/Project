@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceReportFilters } from "@/components/attendance-summary/AttendanceReportFilters";
 // import { AttendanceSummaryTable } from "@/components/attendance-summary/AttendanceSummaryTable"; // Will be added later
 
 const AttendanceSummary = () => {
-  const [filters, setFilters] = useState({
+  const [, setFilters] = useState({ // 'filters' est ignoré pour l'instant car non utilisé directement ici
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     teamMemberId: "" as string,
