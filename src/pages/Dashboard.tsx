@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { showError } from "@/utils/toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale"; // Import French locale for date formatting
+import { AttendanceChart } from "@/components/dashboard/AttendanceChart"; // Correction: Suppression de l'extension .tsx
 
 // Define interfaces for the raw data returned by Supabase joins
 interface SupabaseJoinedTeamMember {
@@ -283,6 +284,8 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+        {/* New Attendance Chart */}
+        <AttendanceChart />
       </div>
       <div className="mt-8">
         <h2 className="text-2xl font-semibold mb-4">Activités Récentes</h2>
