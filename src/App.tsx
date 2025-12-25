@@ -11,7 +11,8 @@ import Overtime from "./pages/Overtime";
 import TourPlanning from "./pages/TourPlanning";
 import Profile from "./pages/Profile";
 import DailyAttendance from "./pages/DailyAttendance";
-import AttendanceSummary from "./pages/AttendanceSummary"; // Import the new AttendanceSummary page
+import AttendanceSummary from "./pages/AttendanceSummary";
+import TeamMemberDetails from "./pages/TeamMemberDetails"; // Import the new TeamMemberDetails page
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider } from "@/components/auth/SessionContextProvider";
@@ -35,7 +36,8 @@ const App = () => (
               <Route path="overtime" element={<Overtime />} />
               <Route path="tour-planning" element={<TourPlanning />} />
               <Route path="profile" element={<Profile />} />
-              <Route path="attendance-summary" element={<AttendanceSummary />} /> {/* New Attendance Summary Route */}
+              <Route path="attendance-summary" element={<AttendanceSummary />} />
+              <Route path="team-members/:id" element={<TeamMemberDetails />} /> {/* New Team Member Details Route */}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Route>

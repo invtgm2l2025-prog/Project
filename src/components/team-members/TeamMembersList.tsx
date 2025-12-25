@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "react-router-dom"; // Import Link from react-router-dom
 
 interface TeamMember {
   id: string;
@@ -142,7 +143,11 @@ export const TeamMembersList = () => {
             <TableBody>
               {teamMembers.map((member) => (
                 <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link to={`/team-members/${member.id}`} className="text-blue-600 hover:underline">
+                      {member.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={member.status}
