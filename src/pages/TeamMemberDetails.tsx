@@ -8,6 +8,7 @@ import { showError } from "@/utils/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { TeamMemberProfileCard } from "@/components/team-members/TeamMemberProfileCard";
+import { EditTeamMemberForm } from "@/components/team-members/EditTeamMemberForm"; // Import the new edit form
 import { TeamMemberAttendanceList } from "@/components/team-members/TeamMemberAttendanceList";
 import { TeamMemberLeaveRequestsList } from "@/components/team-members/TeamMemberLeaveRequestsList";
 import { TeamMemberOvertimeRequestsList } from "@/components/team-members/TeamMemberOvertimeRequestsList";
@@ -86,6 +87,7 @@ const TeamMemberDetails = () => {
       <h1 className="text-3xl font-bold mb-8">Détails de {teamMember.name}</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TeamMemberProfileCard teamMember={teamMember} />
+        <EditTeamMemberForm teamMember={teamMember} /> {/* Add the edit form here */}
         <TeamMemberAttendanceList teamMemberId={teamMember.id} />
         <TeamMemberLeaveRequestsList teamMemberId={teamMember.id} />
         <TeamMemberOvertimeRequestsList teamMemberId={teamMember.id} />
