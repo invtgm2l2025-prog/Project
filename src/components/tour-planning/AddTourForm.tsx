@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-// Removed Input as it was not used
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,19 +21,39 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 interface TeamMember {
   id: string;
   name: string;
 }
 
+// Schéma de validation pour le formulaire de planification de tournée
+const formSchema = z.object({
+  teamMemberId: z.string().min(1, "Veuillez sélectionner un membre d'équipe."),
+  tourDate: z.date({
+    required_error: "Veuillez sélectionner une date pour la tournée.",
+  }),
+  description: z.string().max(255, "La description est trop longue.").optional(),
+});
+
+type AddTourFormValues = z.infer<typeof formSchema>;
+
 export const AddTourForm = () => {
-  const [teamMemberId, setTeamMemberId] = useState<string>("");
-  const [tourDate, setTourDate] = useState<Date | undefined>(undefined);
-  const [description, setDescription] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useSession();
+  const [loading, setLoading] = useState(false);
+
+  const form = useForm<AddTourFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      teamMemberId: "",
+      tourDate: undefined,
+      description: "",
+    },
+  });
 
   const { data: teamMembers, isLoading: isLoadingTeamMembers } = useQuery<TeamMember[]>({
     queryKey: ["team_members_for_tour"],
@@ -50,14 +69,9 @@ export const AddTourForm = () => {
     enabled: !!user,
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: AddTourFormValues) => {
     if (!user) {
       showError("Vous devez être connecté pour planifier une tournée.");
-      return;
-    }
-    if (!teamMemberId || !tourDate) {
-      showError("Veuillez sélectionner un membre d'équipe et une date pour la tournée.");
       return;
     }
 
@@ -65,9 +79,9 @@ export const AddTourForm = () => {
     const { error } = await supabase.from("tours").insert([
       {
         user_id: user.id,
-        team_member_id: teamMemberId,
-        tour_date: format(tourDate, "yyyy-MM-dd"),
-        description: description.trim() || null,
+        team_member_id: values.teamMemberId,
+        tour_date: format(values.tourDate, "yyyy-MM-dd"),
+        description: values.description?.trim() || null,
         status: "Planned",
       },
     ]);
@@ -77,9 +91,7 @@ export const AddTourForm = () => {
       showError("Échec de la planification de la tournée: " + error.message);
     } else {
       showSuccess("Tournée planifiée avec succès !");
-      setTeamMemberId("");
-      setTourDate(undefined);
-      setDescription("");
+      form.reset();
       queryClient.invalidateQueries({ queryKey: ["tours"] });
     }
     setLoading(false);
@@ -91,12 +103,12 @@ export const AddTourForm = () => {
         <CardTitle>Planifier une nouvelle tournée</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="teamMember">Membre de l'équipe</Label>
             <Select
-              value={teamMemberId}
-              onValueChange={setTeamMemberId}
+              value={form.watch("teamMemberId")}
+              onValueChange={(value) => form.setValue("teamMemberId", value, { shouldValidate: true })}
               disabled={isLoadingTeamMembers || loading}
             >
               <SelectTrigger id="teamMember">
@@ -120,6 +132,9 @@ export const AddTourForm = () => {
                 )}
               </SelectContent>
             </Select>
+            {form.formState.errors.teamMemberId && (
+              <p className="text-red-500 text-sm">{form.formState.errors.teamMemberId.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -130,23 +145,26 @@ export const AddTourForm = () => {
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !tourDate && "text-muted-foreground"
+                    !form.watch("tourDate") && "text-muted-foreground"
                   )}
                   disabled={loading}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {tourDate ? format(tourDate, "PPP") : <span>Sélectionner une date</span>}
+                  {form.watch("tourDate") ? format(form.watch("tourDate")!, "PPP") : <span>Sélectionner une date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
-                  selected={tourDate}
-                  onSelect={setTourDate}
+                  selected={form.watch("tourDate")}
+                  onSelect={(date) => form.setValue("tourDate", date!, { shouldValidate: true })}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {form.formState.errors.tourDate && (
+              <p className="text-red-500 text-sm">{form.formState.errors.tourDate.message}</p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -154,10 +172,12 @@ export const AddTourForm = () => {
             <Textarea
               id="description"
               placeholder="Ex: Livraison de colis dans le quartier nord."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...form.register("description")}
               disabled={loading}
             />
+            {form.formState.errors.description && (
+              <p className="text-red-500 text-sm">{form.formState.errors.description.message}</p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
