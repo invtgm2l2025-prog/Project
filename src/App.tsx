@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import DailyAttendance from "./pages/DailyAttendance";
 import AttendanceSummary from "./pages/AttendanceSummary";
 import TeamMemberDetails from "./pages/TeamMemberDetails";
+import PublicHolidays from "./pages/PublicHolidays"; // Import the new PublicHolidays page
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { SessionContextProvider } from "@/components/auth/SessionContextProvider";
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="leave-absence" element={<LeaveAbsence />} />
               <Route path="overtime" element={<Overtime />} />
               <Route path="tour-planning" element={<TourPlanning />} />
+              <Route path="public-holidays" element={<PublicHolidays />} /> {/* New route for Public Holidays */}
               <Route path="profile" element={<Profile />} />
               <Route path="attendance-summary" element={<AttendanceSummary />} />
               <Route path="team-members/:id" element={<TeamMemberDetails />} />
