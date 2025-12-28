@@ -39,7 +39,7 @@ export const TourList = () => {
   const { user } = useSession();
 
   const { data: tours, isLoading, error } = useQuery<Tour[]>({
-    queryKey: ["tours"],
+    queryKey: ["tours", user?.id], // Added user?.id to queryKey
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -76,7 +76,7 @@ export const TourList = () => {
       showError("Échec de la suppression de la tournée: " + error.message);
     } else {
       showSuccess("Tournée supprimée avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["tours"] });
+      queryClient.invalidateQueries({ queryKey: ["tours", user?.id] }); // Updated invalidateQueries
     }
   };
 
@@ -97,7 +97,7 @@ export const TourList = () => {
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut de la tournée mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["tours"] });
+      queryClient.invalidateQueries({ queryKey: ["tours", user?.id] }); // Updated invalidateQueries
     }
   };
 

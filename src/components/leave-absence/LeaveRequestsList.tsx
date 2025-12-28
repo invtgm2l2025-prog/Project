@@ -40,7 +40,7 @@ export const LeaveRequestsList = () => {
   const { user } = useSession();
 
   const { data: leaveRequests, isLoading, error } = useQuery<LeaveRequest[]>({
-    queryKey: ["leave_requests"],
+    queryKey: ["leave_requests", user?.id], // Added user?.id to queryKey
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -77,7 +77,7 @@ export const LeaveRequestsList = () => {
       showError("Échec de la suppression de la demande de congé: " + error.message);
     } else {
       showSuccess("Demande de congé supprimée avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["leave_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave_requests", user?.id] }); // Updated invalidateQueries
     }
   };
 
@@ -98,7 +98,7 @@ export const LeaveRequestsList = () => {
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut de la demande mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["leave_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave_requests", user?.id] }); // Updated invalidateQueries
     }
   };
 

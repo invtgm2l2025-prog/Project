@@ -41,7 +41,7 @@ export const DailyAttendanceList = () => {
   const { user } = useSession();
 
   const { data: dailyAttendances, isLoading, error } = useQuery<DailyAttendance[]>({
-    queryKey: ["daily_attendances"],
+    queryKey: ["daily_attendances", user?.id], // Added user?.id to queryKey
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -79,7 +79,8 @@ export const DailyAttendanceList = () => {
       showError("Échec de la suppression de l'enregistrement: " + error.message);
     } else {
       showSuccess("Enregistrement de présence supprimé avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["daily_attendances"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] }); // Updated invalidateQueries
+      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] }); // Invalider le graphique du tableau de bord
     }
   };
 
@@ -100,7 +101,8 @@ export const DailyAttendanceList = () => {
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["daily_attendances"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] }); // Updated invalidateQueries
+      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] }); // Invalider le graphique du tableau de bord
     }
   };
 

@@ -40,7 +40,7 @@ export const OvertimeRequestsList = () => {
   const { user } = useSession();
 
   const { data: overtimeRequests, isLoading, error } = useQuery<OvertimeRequest[]>({
-    queryKey: ["overtime_requests"],
+    queryKey: ["overtime_requests", user?.id], // Added user?.id to queryKey
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -77,7 +77,7 @@ export const OvertimeRequestsList = () => {
       showError("Échec de la suppression de la demande: " + error.message);
     } else {
       showSuccess("Demande d'heures supplémentaires supprimée avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["overtime_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["overtime_requests", user?.id] }); // Updated invalidateQueries
     }
   };
 
@@ -98,7 +98,7 @@ export const OvertimeRequestsList = () => {
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut de la demande mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["overtime_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["overtime_requests", user?.id] }); // Updated invalidateQueries
     }
   };
 
