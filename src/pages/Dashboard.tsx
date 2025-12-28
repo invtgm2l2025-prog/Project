@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/auth/SessionContextProvider";
 import { Loader2 } from "lucide-react";
 import { showError } from "@/utils/toast";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale"; // Import French locale for date formatting
-import { AttendanceChart } from "@/components/dashboard/AttendanceChart"; // Correction: Suppression de l'extension .tsx
+import { format, subDays } from "date-fns";
+import { fr } from "date-fns/locale";
+import { AttendanceChart } from "@/components/dashboard/AttendanceChart"; // Importation ajoutée
 
 // Define interfaces for the raw data returned by Supabase joins
 interface SupabaseJoinedTeamMember {
@@ -50,23 +50,44 @@ interface SupabaseTeamMemberData {
   created_at: string;
 }
 
+interface DailyAttendanceForStats {
+  attendance_date: string;
+  team_member_id: string;
+  status: string;
+}
+
 const Dashboard = () => {
   const { user } = useSession();
 
-  // Fetch team members count and status
-  const { data: teamMembersData, isLoading: isLoadingTeamMembers, error: teamMembersError } = useQuery({
-    queryKey: ["dashboard_team_members"],
+  // Fetch total team members count
+  const { data: totalTeamMembersCount, isLoading: isLoadingTotalTeamMembers, error: totalTeamMembersError } = useQuery({
+    queryKey: ["dashboard_total_team_members", user?.id],
     queryFn: async () => {
-      if (!user) return { total: 0, present: 0 };
-      const { data, error } = await supabase
+      if (!user) return 0;
+      const { count, error } = await supabase
         .from("team_members")
-        .select("id, status")
+        .select("id", { count: "exact" })
         .eq("user_id", user.id);
-
       if (error) throw new Error(error.message);
-      const total = data?.length || 0;
-      const present = data?.filter(member => member.status === "Présent").length || 0;
-      return { total, present };
+      return count || 0;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch present team members count today
+  const { data: presentTeamMembersToday, isLoading: isLoadingPresentTeamMembersToday, error: presentTeamMembersTodayError } = useQuery({
+    queryKey: ["dashboard_present_team_members_today", user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { count, error } = await supabase
+        .from("daily_attendances")
+        .select("id", { count: "exact" })
+        .eq("user_id", user.id)
+        .eq("attendance_date", today)
+        .eq("status", "Present");
+      if (error) throw new Error(error.message);
+      return count || 0;
     },
     enabled: !!user,
   });
@@ -120,6 +141,48 @@ const Dashboard = () => {
 
       if (error) throw new Error(error.message);
       return count || 0;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch daily attendance stats for average present members
+  const { data: dailyAttendanceStats, isLoading: isLoadingDailyAttendanceStats, error: dailyAttendanceStatsError } = useQuery({
+    queryKey: ["dashboard_daily_attendance_stats", user?.id],
+    queryFn: async () => {
+      if (!user) return { averagePresentUnique: 0 };
+
+      const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("daily_attendances")
+        .select("attendance_date, team_member_id, status")
+        .eq("user_id", user.id)
+        .gte("attendance_date", sevenDaysAgo)
+        .lte("attendance_date", today);
+
+      if (error) throw new Error(error.message);
+
+      const dailyUniquePresent: { [date: string]: Set<string> } = {};
+      (data as DailyAttendanceForStats[])?.forEach(att => {
+        if (att.status === "Present") {
+          if (!dailyUniquePresent[att.attendance_date]) {
+            dailyUniquePresent[att.attendance_date] = new Set();
+          }
+          dailyUniquePresent[att.attendance_date].add(att.team_member_id);
+        }
+      });
+
+      let totalUniquePresentCount = 0;
+      let daysCounted = 0;
+      for (const date in dailyUniquePresent) {
+        totalUniquePresentCount += dailyUniquePresent[date].size;
+        daysCounted++;
+      }
+
+      const averagePresentUnique = daysCounted > 0 ? totalUniquePresentCount / daysCounted : 0;
+
+      return { averagePresentUnique: parseFloat(averagePresentUnique.toFixed(1)) };
     },
     enabled: !!user,
   });
@@ -212,18 +275,35 @@ const Dashboard = () => {
     ...(recentTeamMembers || []),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  if (teamMembersError) showError("Erreur lors du chargement des membres de l'équipe: " + teamMembersError.message);
+  if (totalTeamMembersError) showError("Erreur lors du chargement du nombre total de membres de l'équipe: " + totalTeamMembersError.message);
+  if (presentTeamMembersTodayError) showError("Erreur lors du chargement des membres présents aujourd'hui: " + presentTeamMembersTodayError.message);
   if (leaveRequestsError) showError("Erreur lors du chargement des demandes de congés: " + leaveRequestsError.message);
   if (overtimeError) showError("Erreur lors du chargement des heures supplémentaires: " + overtimeError.message);
   if (toursError) showError("Erreur lors du chargement des tournées: " + toursError.message);
+  if (dailyAttendanceStatsError) showError("Erreur lors du chargement des statistiques de présence quotidienne: " + dailyAttendanceStatsError.message);
 
-  const isLoadingAny = isLoadingTeamMembers || isLoadingLeaveRequests || isLoadingOvertime || isLoadingTours ||
-                       isLoadingRecentLeaveRequests || isLoadingRecentOvertimeRequests || isLoadingRecentTours || isLoadingRecentTeamMembers;
+  const isLoadingAny = isLoadingTotalTeamMembers || isLoadingPresentTeamMembersToday || isLoadingLeaveRequests || isLoadingOvertime || isLoadingTours ||
+                       isLoadingDailyAttendanceStats || isLoadingRecentLeaveRequests || isLoadingRecentOvertimeRequests || isLoadingRecentTours || isLoadingRecentTeamMembers;
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8">Tableau de bord</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Membres de l'équipe</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAny ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <>
+                <p className="text-2xl font-semibold">{totalTeamMembersCount} membres</p>
+                <p className="text-sm text-muted-foreground">Total de l'équipe</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Présence Aujourd'hui</CardTitle>
@@ -233,8 +313,23 @@ const Dashboard = () => {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             ) : (
               <>
-                <p className="text-2xl font-semibold">{teamMembersData?.present}/{teamMembersData?.total} membres présents</p>
-                <p className="text-sm text-muted-foreground">Statut actuel de l'équipe</p>
+                <p className="text-2xl font-semibold">{presentTeamMembersToday} présents</p>
+                <p className="text-sm text-muted-foreground">Membres présents aujourd'hui</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Moyenne Présence Quotidienne</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAny ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <>
+                <p className="text-2xl font-semibold">{dailyAttendanceStats?.averagePresentUnique} membres</p>
+                <p className="text-sm text-muted-foreground">Moyenne sur 7 jours</p>
               </>
             )}
           </CardContent>
