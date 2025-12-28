@@ -20,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, differenceInMinutes, parse } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,18 +40,36 @@ const formSchema = z.object({
   status: z.enum(["Present", "Absent", "Leave", "Sick", "Holiday"], {
     required_error: "Veuillez sélectionner un statut.",
   }),
-  hoursWorked: z.preprocess(
-    (val) => (val === "" ? null : Number(val)),
-    z.nullable(z.number().min(0.5, "Les heures travaillées doivent être au moins de 0.5").max(24, "Les heures travaillées ne peuvent pas dépasser 24")).optional()
-  ),
+  clockInTime: z.string().optional(), // Format HH:mm
+  clockOutTime: z.string().optional(), // Format HH:mm
   description: z.string().max(255, "La description est trop longue.").optional(),
 }).superRefine((data, ctx) => {
-  if (data.status === "Present" && data.hoursWorked === null) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Veuillez entrer les heures travaillées pour le statut 'Présent'.",
-      path: ["hoursWorked"],
-    });
+  if (data.status === "Present") {
+    if (!data.clockInTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'heure d'entrée est requise pour le statut 'Présent'.",
+        path: ["clockInTime"],
+      });
+    }
+    if (!data.clockOutTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'heure de sortie est requise pour le statut 'Présent'.",
+        path: ["clockOutTime"],
+      });
+    }
+    if (data.clockInTime && data.clockOutTime) {
+      const inTime = parse(data.clockInTime, "HH:mm", new Date());
+      const outTime = parse(data.clockOutTime, "HH:mm", new Date());
+      if (outTime <= inTime) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "L'heure de sortie doit être postérieure à l'heure d'entrée.",
+          path: ["clockOutTime"],
+        });
+      }
+    }
   }
 });
 
@@ -68,7 +86,8 @@ export const AddDailyAttendanceForm = () => {
       teamMemberId: "",
       attendanceDate: undefined,
       status: "Present",
-      hoursWorked: undefined,
+      clockInTime: "",
+      clockOutTime: "",
       description: "",
     },
   });
@@ -87,6 +106,20 @@ export const AddDailyAttendanceForm = () => {
     enabled: !!user,
   });
 
+  const calculateHoursWorked = (clockIn: string, clockOut: string): number => {
+    const inTime = parse(clockIn, "HH:mm", new Date());
+    const outTime = parse(clockOut, "HH:mm", new Date());
+
+    const totalMinutes = differenceInMinutes(outTime, inTime);
+    let hours = totalMinutes / 60;
+
+    // Apply 1 hour break if total duration is more than 4 hours
+    if (hours > 4) {
+      hours -= 1;
+    }
+    return Math.max(0, parseFloat(hours.toFixed(1))); // Ensure hours are not negative and one decimal place
+  };
+
   const onSubmit = async (values: AddDailyAttendanceFormValues) => {
     if (!user) {
       showError("Vous devez être connecté pour enregistrer une présence.");
@@ -94,13 +127,20 @@ export const AddDailyAttendanceForm = () => {
     }
 
     setLoading(true);
+    let hoursWorked: number | null = null;
+    if (values.status === "Present" && values.clockInTime && values.clockOutTime) {
+      hoursWorked = calculateHoursWorked(values.clockInTime, values.clockOutTime);
+    }
+
     const { error } = await supabase.from("daily_attendances").insert([
       {
         user_id: user.id,
         team_member_id: values.teamMemberId,
         attendance_date: format(values.attendanceDate, "yyyy-MM-dd"),
         status: values.status,
-        hours_worked: values.status === "Present" ? values.hoursWorked : null,
+        clock_in_time: values.clockInTime || null,
+        clock_out_time: values.clockOutTime || null,
+        hours_worked: hoursWorked,
         description: values.description?.trim() || null,
       },
     ]);
@@ -116,6 +156,8 @@ export const AddDailyAttendanceForm = () => {
     }
     setLoading(false);
   };
+
+  const status = form.watch("status");
 
   return (
     <Card className="w-full max-w-md">
@@ -190,7 +232,7 @@ export const AddDailyAttendanceForm = () => {
           <div className="grid gap-2">
             <Label htmlFor="status">Statut</Label>
             <Select
-              value={form.watch("status")}
+              value={status}
               onValueChange={(value: "Present" | "Absent" | "Leave" | "Sick" | "Holiday") => form.setValue("status", value, { shouldValidate: true })}
               disabled={loading}
             >
@@ -210,21 +252,33 @@ export const AddDailyAttendanceForm = () => {
             )}
           </div>
 
-          {form.watch("status") === "Present" && (
-            <div className="grid gap-2">
-              <Label htmlFor="hoursWorked">Heures travaillées</Label>
-              <Input
-                id="hoursWorked"
-                type="number"
-                step="0.5"
-                placeholder="Ex: 8.00"
-                {...form.register("hoursWorked")}
-                disabled={loading}
-              />
-              {form.formState.errors.hoursWorked && (
-                <p className="text-red-500 text-sm">{form.formState.errors.hoursWorked.message}</p>
-              )}
-            </div>
+          {status === "Present" && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="clockInTime">Heure d'entrée</Label>
+                <Input
+                  id="clockInTime"
+                  type="time"
+                  {...form.register("clockInTime")}
+                  disabled={loading}
+                />
+                {form.formState.errors.clockInTime && (
+                  <p className="text-red-500 text-sm">{form.formState.errors.clockInTime.message}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="clockOutTime">Heure de sortie</Label>
+                <Input
+                  id="clockOutTime"
+                  type="time"
+                  {...form.register("clockOutTime")}
+                  disabled={loading}
+                />
+                {form.formState.errors.clockOutTime && (
+                  <p className="text-red-500 text-sm">{form.formState.errors.clockOutTime.message}</p>
+                )}
+              </div>
+            </>
           )}
 
           <div className="grid gap-2">

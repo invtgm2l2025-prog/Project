@@ -32,6 +32,8 @@ interface DailyAttendance {
   attendance_date: string;
   status: string;
   hours_worked: number | null;
+  clock_in_time: string | null; // New field
+  clock_out_time: string | null; // New field
   description: string | null;
   created_at: string;
 }
@@ -41,7 +43,7 @@ export const DailyAttendanceList = () => {
   const { user } = useSession();
 
   const { data: dailyAttendances, isLoading, error } = useQuery<DailyAttendance[]>({
-    queryKey: ["daily_attendances", user?.id], // Added user?.id to queryKey
+    queryKey: ["daily_attendances", user?.id],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -79,8 +81,8 @@ export const DailyAttendanceList = () => {
       showError("Échec de la suppression de l'enregistrement: " + error.message);
     } else {
       showSuccess("Enregistrement de présence supprimé avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] }); // Updated invalidateQueries
-      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] }); // Invalider le graphique du tableau de bord
+      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] });
     }
   };
 
@@ -101,8 +103,8 @@ export const DailyAttendanceList = () => {
       showError("Échec de la mise à jour du statut: " + error.message);
     } else {
       showSuccess("Statut mis à jour avec succès !");
-      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] }); // Updated invalidateQueries
-      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] }); // Invalider le graphique du tableau de bord
+      queryClient.invalidateQueries({ queryKey: ["daily_attendances", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard_attendance_chart", user?.id] });
     }
   };
 
@@ -145,6 +147,8 @@ export const DailyAttendanceList = () => {
               <TableRow>
                 <TableHead>Membre</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Heure d'entrée</TableHead>
+                <TableHead>Heure de sortie</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Heures</TableHead>
                 <TableHead>Description</TableHead>
@@ -156,6 +160,8 @@ export const DailyAttendanceList = () => {
                 <TableRow key={attendance.id}>
                   <TableCell className="font-medium">{attendance.team_members.name}</TableCell>
                   <TableCell>{format(new Date(attendance.attendance_date), "PPP", { locale: fr })}</TableCell>
+                  <TableCell>{attendance.clock_in_time || "N/A"}</TableCell>
+                  <TableCell>{attendance.clock_out_time || "N/A"}</TableCell>
                   <TableCell>
                     <Select
                       value={attendance.status}

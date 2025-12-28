@@ -22,6 +22,8 @@ interface DailyAttendance {
   attendance_date: string;
   status: string;
   hours_worked: number | null;
+  clock_in_time: string | null; // New field
+  clock_out_time: string | null; // New field
   description: string | null;
   created_at: string;
 }
@@ -93,6 +95,8 @@ export const TeamMemberAttendanceList = ({ teamMemberId }: TeamMemberAttendanceL
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Heure d'entrée</TableHead>
+                  <TableHead>Heure de sortie</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Heures</TableHead>
                   <TableHead>Description</TableHead>
@@ -102,6 +106,8 @@ export const TeamMemberAttendanceList = ({ teamMemberId }: TeamMemberAttendanceL
                 {dailyAttendances.map((attendance) => (
                   <TableRow key={attendance.id}>
                     <TableCell>{format(new Date(attendance.attendance_date), "PPP", { locale: fr })}</TableCell>
+                    <TableCell>{attendance.clock_in_time || "N/A"}</TableCell>
+                    <TableCell>{attendance.clock_out_time || "N/A"}</TableCell>
                     <TableCell>{attendance.status}</TableCell>
                     <TableCell>{attendance.hours_worked !== null ? attendance.hours_worked : "N/A"}</TableCell>
                     <TableCell>{attendance.description || "N/A"}</TableCell>
